@@ -181,8 +181,9 @@ if st.button(t["button"]):
   if scraped_text.strip():
     with st.spinner(t["spinner_ai"]):
       try:
+        # 3.5 모델명 적용
         model = genai.GenerativeModel(
-            model_name="gemini-3.7-flash", system_instruction=prompt_cmd
+            model_name="gemini-3.5-flash", system_instruction=prompt_cmd
         )
         prompt = (
             f"다음 정보를 바탕으로 블로그 홍보 글을 작성해줘:\n\n{scraped_text}"
@@ -190,7 +191,7 @@ if st.button(t["button"]):
         response_ai = model.generate_content(prompt)
         st.session_state.generated_post = response_ai.text
       except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"AI 생성 중 오류가 발생했습니다: {e}")
 
 # 이미 생성된 원고가 있는 경우 화면에 출력 및 번역 기능 제공
 if st.session_state.generated_post:
@@ -215,7 +216,7 @@ if st.session_state.generated_post:
   if st.button(t["trans_btn"]):
     with st.spinner(t["spinner_trans"]):
       try:
-        trans_model = genai.GenerativeModel(model_name="gemini-3.7-flash")
+        trans_model = genai.GenerativeModel(model_name="gemini-3.5-flash")
         trans_prompt = (
             f"다음 블로그 원고를 자연스러운 {target_lang}로 번역해줘."
             f" 마케팅 톤앤매너를 유지해:\n\n{st.session_state.generated_post}"
@@ -225,7 +226,7 @@ if st.session_state.generated_post:
         st.success(t["trans_success"])
         st.rerun()
       except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"번역 중 오류가 발생했습니다: {e}")
 
   # 📋 직접 복사할 수 있는 텍스트 영역
   st.markdown("---")
