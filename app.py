@@ -10,7 +10,7 @@ genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 ui_texts = {
     "한국어": {
         "title": "🤖 AI 블로그 자동화 생성기",
-        "lang_select": "🌐 화면 언어 및 결과물 언어 선택",
+        "lang_select": "🌐 화면 언어 선택",
         "input_mode": "📥 소스 입력 방식을 선택하세요",
         "mode_url": "웹사이트 링크 입력",
         "mode_text": "직접 본문 텍스트 입력",
@@ -30,10 +30,15 @@ ui_texts = {
         "copy_placeholder": "아래 상자의 내용을 복사해서 사용하세요.",
         "err_url": "링크를 입력해주세요!",
         "err_text": "본문 내용을 입력해주세요!",
+        "trans_header": "🌐 생성된 원고 추가 번역",
+        "trans_label": "번역할 언어를 선택하세요",
+        "trans_btn": "원고 번역하기",
+        "spinner_trans": "🔄 원고를 번역하고 있습니다...",
+        "trans_success": "✨ 번역이 완료되었습니다!",
     },
     "영어 (English)": {
         "title": "🤖 AI Blog Automation Generator",
-        "lang_select": "🌐 Select UI Language & Output Language",
+        "lang_select": "🌐 Select UI Language",
         "input_mode": "📥 Select Source Input Method",
         "mode_url": "Website Link Input",
         "mode_text": "Direct Text Input",
@@ -55,10 +60,15 @@ ui_texts = {
         "copy_placeholder": "Copy the content from the box below.",
         "err_url": "Please enter a link!",
         "err_text": "Please enter body content!",
+        "trans_header": "🌐 Additional Post Translation",
+        "trans_label": "Select language to translate",
+        "trans_btn": "Translate Post",
+        "spinner_trans": "🔄 Translating the post...",
+        "trans_success": "✨ Translation completed!",
     },
     "베트남어 (Tiếng Việt)": {
         "title": "🤖 Trình Tạo Blog Tự Động AI",
-        "lang_select": "🌐 Chọn Ngôn Ngữ Giao Diện & Đầu Ra",
+        "lang_select": "🌐 Chọn Ngôn Ngữ Giao Diện",
         "input_mode": "📥 Chọn Phương Thức Nhập Nguồn",
         "mode_url": "Nhập Liên Kết Trang Web",
         "mode_text": "Nhập Văn Bản Trực Tiếp",
@@ -79,10 +89,15 @@ ui_texts = {
         "copy_placeholder": "Sao chép nội dung từ ô bên dưới để sử dụng.",
         "err_url": "Vui lòng nhập liên kết!",
         "err_text": "Vui lòng nhập nội dung văn bản!",
+        "trans_header": "🌐 Dịch Bổ Sung Bài Viết",
+        "trans_label": "Chọn ngôn ngữ để dịch",
+        "trans_btn": "Dịch Bài Viết",
+        "spinner_trans": "🔄 Đang dịch bài viết...",
+        "trans_success": "✨ Đã dịch xong!",
     },
     "일본어 (日本語)": {
         "title": "🤖 AI ブログ自動化ジェネレーター",
-        "lang_select": "🌐 UI言語および出力言語の選択",
+        "lang_select": "🌐 UI言語の選択",
         "input_mode": "📥 ソース入力方法を選択してください",
         "mode_url": "ウェブサイトリンク入力",
         "mode_text": "直接本文テキスト入力",
@@ -101,10 +116,15 @@ ui_texts = {
         "copy_placeholder": "下のボックスの内容をコピーしてご使用ください。",
         "err_url": "リンクを入力してください！",
         "err_text": "本文の内容を入力してください！",
+        "trans_header": "🌐 生成された原稿の追加翻訳",
+        "trans_label": "翻訳する言語を選択してください",
+        "trans_btn": "原稿を翻訳する",
+        "spinner_trans": "🔄 原稿を翻訳しています...",
+        "trans_success": "✨ 翻訳が完了しました！",
     },
 }
 
-# 상단 또는 사이드바에서 언어 선택 (UI 전체에 반영)
+# 상단 UI 언어 선택
 selected_lang = st.selectbox(
     "🌐 Language / 언어 / Ngôn ngữ / 言語",
     ["한국어", "영어 (English)", "베트남어 (Tiếng Việt)", "일본어 (日本語)"],
@@ -114,9 +134,7 @@ t = ui_texts[selected_lang]
 st.title(t["title"])
 
 # 입력 방식 선택 옵션
-input_mode = st.radio(
-    t["input_mode"], [t["mode_url"], t["mode_text"]]
-)
+input_mode = st.radio(t["input_mode"], [t["mode_url"], t["mode_text"]])
 
 scraped_text = ""
 
@@ -128,6 +146,10 @@ else:
   )
 
 prompt_cmd = st.text_area(t["prompt_label"], t["default_prompt"])
+
+# 세션 상태 초기화 (원고 유지용)
+if "generated_post" not in st.session_state:
+  st.session_state.generated_post = ""
 
 if st.button(t["button"]):
   if input_mode == t["mode_url"]:
@@ -162,39 +184,50 @@ if st.button(t["button"]):
         model = genai.GenerativeModel(
             model_name="gemini-3.7-flash", system_instruction=prompt_cmd
         )
-
-        lang_instruction = ""
-        if "베트남어" in selected_lang:
-          lang_instruction = (
-              " 최종 결과물은 반드시 자연스러운 베트남어로 작성해줘."
-          )
-        elif "영어" in selected_lang:
-          lang_instruction = (
-              " 최종 결과물은 반드시 자연스러운 영어(English)로 작성해줘."
-          )
-        elif "일본어" in selected_lang:
-          lang_instruction = (
-              " 최종 결과물은 반드시 자연스러운 일본어(日本語)로 작성해줘."
-          )
-        else:
-          lang_instruction = " 최종 결과물은 한국어로 작성해줘."
-
         prompt = (
-            f"다음 정보를 바탕으로 블로그 홍보 글을 써줘.\n{lang_instruction}\n\n"
-            f"{scraped_text}"
+            f"다음 정보를 바탕으로 블로그 홍보 글을 작성해줘:\n\n{scraped_text}"
         )
         response_ai = model.generate_content(prompt)
-
-        st.success(t["success"])
-        st.markdown("---")
-
-        # 결과 화면 출력
-        st.markdown(response_ai.text)
-
-        # 📋 직접 복사할 수 있는 텍스트 영역
-        st.markdown("---")
-        st.subheader(t["copy_header"])
-        st.text_area(t["copy_placeholder"], response_ai.text, height=250)
-
+        st.session_state.generated_post = response_ai.text
       except Exception as e:
         st.error(f"Error: {e}")
+
+# 이미 생성된 원고가 있는 경우 화면에 출력 및 번역 기능 제공
+if st.session_state.generated_post:
+  st.success(t["success"])
+  st.markdown("---")
+
+  st.markdown(st.session_state.generated_post)
+
+  # 🌐 생성된 원고 하단 번역 섹션
+  st.markdown("---")
+  st.subheader(t["trans_header"])
+  target_lang = st.selectbox(
+      t["trans_label"],
+      [
+          "한국어 (Korean)",
+          "영어 (English)",
+          "베트남어 (Tiếng Việt)",
+          "일본어 (Japanese)",
+      ],
+  )
+
+  if st.button(t["trans_btn"]):
+    with st.spinner(t["spinner_trans"]):
+      try:
+        trans_model = genai.GenerativeModel(model_name="gemini-3.7-flash")
+        trans_prompt = (
+            f"다음 블로그 원고를 자연스러운 {target_lang}로 번역해줘."
+            f" 마케팅 톤앤매너를 유지해:\n\n{st.session_state.generated_post}"
+        )
+        trans_response = trans_model.generate_content(trans_prompt)
+        st.session_state.generated_post = trans_response.text
+        st.success(t["trans_success"])
+        st.rerun()
+      except Exception as e:
+        st.error(f"Error: {e}")
+
+  # 📋 직접 복사할 수 있는 텍스트 영역
+  st.markdown("---")
+  st.subheader(t["copy_header"])
+  st.text_area(t["copy_placeholder"], st.session_state.generated_post, height=250)
