@@ -216,7 +216,10 @@ if st.button(t["button"]):
         else:
             with st.spinner(t["spinner_video"]):
                 try:
-                    video_file_obj = genai.upload_file(uploaded_video)
+                    # 💡 수정된 부분: Streamlit 파일 객체를 보낼 때 mime_type을 지정해줍니다.
+                    video_file_obj = genai.upload_file(
+                        uploaded_video, mime_type=uploaded_video.type
+                    )
 
                     while video_file_obj.state.name == "PROCESSING":
                         time.sleep(2)
