@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+genai.configure(api_key=st.secrets["GEMINI_API_KEY_2"])
 
 # 🌍 UI 다국어 사전 정의
 ui_texts = {
