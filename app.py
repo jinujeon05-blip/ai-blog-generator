@@ -1,5 +1,6 @@
-import google.generativeai as genai
+import time
 from bs4 import BeautifulSoup
+import google.generativeai as genai
 import requests
 import streamlit as st
 
@@ -14,8 +15,12 @@ ui_texts = {
         "input_mode": "📥 소스 입력 방식을 선택하세요",
         "mode_url": "웹사이트 링크 입력",
         "mode_text": "직접 본문 텍스트 입력",
+        "mode_video": "영상 파일 업로드",
         "url_label": "분석할 웹사이트 링크 입력",
         "text_label": "블로그 원고로 변환할 본문 내용을 직접 붙여넣으세요",
+        "video_label": (
+            "블로그로 변환할 영상 파일을 업로드하세요 (MP4, MOV 등)"
+        ),
         "text_placeholder": (
             "여기에 상품 설명, 뉴스 기사, 또는 참고할 텍스트를 복사해서"
             " 붙여넣으세요..."
@@ -24,12 +29,14 @@ ui_texts = {
         "default_prompt": "10년 차 블로그 마케터처럼 작성해줘",
         "button": "블로그 원고 생성하기",
         "spinner_url": "🔄 정보를 수집하고 있습니다...",
+        "spinner_video": "🔄 영상을 업로드하고 AI가 분석 중입니다...",
         "spinner_ai": "✨ 제미나이가 마케팅 원고를 작성하고 있습니다...",
         "success": "✨ 블로그 원고가 완성되었습니다!",
         "copy_header": "📋 원고 텍스트 직접 복사",
         "copy_placeholder": "아래 상자의 내용을 복사해서 사용하세요.",
         "err_url": "링크를 입력해주세요!",
         "err_text": "본문 내용을 입력해주세요!",
+        "err_video": "영상 파일을 업로드해주세요!",
         "trans_header": "🌐 생성된 원고 추가 번역",
         "trans_label": "번역할 언어를 선택하세요",
         "trans_btn": "원고 번역하기",
@@ -42,8 +49,12 @@ ui_texts = {
         "input_mode": "📥 Select Source Input Method",
         "mode_url": "Website Link Input",
         "mode_text": "Direct Text Input",
+        "mode_video": "Video File Upload",
         "url_label": "Enter Website Link to Analyze",
         "text_label": "Paste the body text to convert into a blog post",
+        "video_label": (
+            "Upload a video file to convert into a blog post (MP4, MOV, etc.)"
+        ),
         "text_placeholder": (
             "Paste product descriptions, news articles, or reference text"
             " here..."
@@ -54,12 +65,14 @@ ui_texts = {
         ),
         "button": "Generate Blog Post",
         "spinner_url": "🔄 Gathering information...",
+        "spinner_video": "🔄 Uploading video and analyzing with AI...",
         "spinner_ai": "✨ Gemini is crafting your marketing copy...",
         "success": "✨ Blog post successfully generated!",
         "copy_header": "📋 Direct Copy Text Area",
         "copy_placeholder": "Copy the content from the box below.",
         "err_url": "Please enter a link!",
         "err_text": "Please enter body content!",
+        "err_video": "Please upload a video file!",
         "trans_header": "🌐 Additional Post Translation",
         "trans_label": "Select language to translate",
         "trans_btn": "Translate Post",
@@ -72,8 +85,10 @@ ui_texts = {
         "input_mode": "📥 Chọn Phương Thức Nhập Nguồn",
         "mode_url": "Nhập Liên Kết Trang Web",
         "mode_text": "Nhập Văn Bản Trực Tiếp",
+        "mode_video": "Tải Lên Tệp Video",
         "url_label": "Nhập liên kết trang web cần phân tích",
         "text_label": "Dán nội dung văn bản để chuyển đổi thành bài đăng blog",
+        "video_label": "Tải lên tệp video để chuyển đổi thành bài viết blog",
         "text_placeholder": (
             "Dán mô tả sản phẩm, bài báo hoặc văn bản tham khảo vào đây..."
         ),
@@ -83,12 +98,14 @@ ui_texts = {
         ),
         "button": "Tạo Bài Viết Blog",
         "spinner_url": "🔄 Đang thu thập thông tin...",
+        "spinner_video": "🔄 Đang tải lên video và phân tích bằng AI...",
         "spinner_ai": "✨ Gemini đang soạn thảo nội dung tiếp thị cho bạn...",
         "success": "✨ Bài viết blog đã được hoàn thành!",
         "copy_header": "📋 Khu Vực Sao Chép Văn Bản Trực Tiếp",
         "copy_placeholder": "Sao chép nội dung từ ô bên dưới để sử dụng.",
         "err_url": "Vui lòng nhập liên kết!",
         "err_text": "Vui lòng nhập nội dung văn bản!",
+        "err_video": "Vui lòng tải lên tệp video!",
         "trans_header": "🌐 Dịch Bổ Sung Bài Viết",
         "trans_label": "Chọn ngôn ngữ để dịch",
         "trans_btn": "Dịch Bài Viết",
@@ -101,8 +118,10 @@ ui_texts = {
         "input_mode": "📥 ソース入力方法を選択してください",
         "mode_url": "ウェブサイトリンク入力",
         "mode_text": "直接本文テキスト入力",
+        "mode_video": "動画ファイルアップロード",
         "url_label": "分析するウェブサイトのリンクを入力",
         "text_label": "ブログ原稿に変換する本文の内容を直接貼り付けてください",
+        "video_label": "ブログに変換する動画ファイルをアップロードしてください",
         "text_placeholder": (
             "ここに商品説明、ニュース記事、または参考テキストを貼り付けてください..."
         ),
@@ -110,12 +129,14 @@ ui_texts = {
         "default_prompt": "10年目のプロブログマーケターのように書いてください。",
         "button": "ブログ原稿を生成する",
         "spinner_url": "🔄 情報を収集中です...",
+        "spinner_video": "🔄 動画をアップロードし、AIが分析中です...",
         "spinner_ai": "✨ Geminiがマーケティング原稿を作成しています...",
         "success": "✨ ブログ原稿が完成しました！",
         "copy_header": "📋 原稿テキスト直接コピー",
         "copy_placeholder": "下のボックスの内容をコピーしてご使用ください。",
         "err_url": "リンクを入力してください！",
         "err_text": "本文の内容を入力してください！",
+        "err_video": "動画ファイルをアップロードしてください！",
         "trans_header": "🌐 生成された原稿の追加翻訳",
         "trans_label": "翻訳する言語を選択してください",
         "trans_btn": "原稿を翻訳する",
@@ -133,102 +154,140 @@ t = ui_texts[selected_lang]
 
 st.title(t["title"])
 
-# 입력 방식 선택 옵션
-input_mode = st.radio(t["input_mode"], [t["mode_url"], t["mode_text"]])
+# 입력 방식 선택 옵션 (영상 업로드 모드 포함)
+input_mode = st.radio(
+    t["input_mode"], [t["mode_url"], t["mode_text"], t["mode_video"]]
+)
 
 scraped_text = ""
+video_file_obj = None
 
 if input_mode == t["mode_url"]:
-  url = st.text_input(t["url_label"], "https://news.naver.com")
+    url = st.text_input(t["url_label"], "https://news.naver.com")
+elif input_mode == t["mode_text"]:
+    manual_text = st.text_area(
+        t["text_label"], height=150, placeholder=t["text_placeholder"]
+    )
 else:
-  manual_text = st.text_area(
-      t["text_label"], height=150, placeholder=t["text_placeholder"]
-  )
+    uploaded_video = st.file_uploader(
+        t["video_label"], type=["mp4", "mov", "avi", "mkv", "webm"]
+    )
 
 prompt_cmd = st.text_area(t["prompt_label"], t["default_prompt"])
 
 # 세션 상태 초기화 (원고 유지용)
 if "generated_post" not in st.session_state:
-  st.session_state.generated_post = ""
+    st.session_state.generated_post = ""
 
 if st.button(t["button"]):
-  if input_mode == t["mode_url"]:
-    if not url:
-      st.warning(t["err_url"])
-      st.stop()
-    else:
-      with st.spinner(t["spinner_url"]):
-        try:
-          response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-          response.raise_for_status()
-          soup = BeautifulSoup(response.text, "html.parser")
+    if input_mode == t["mode_url"]:
+        if not url:
+            st.warning(t["err_url"])
+            st.stop()
+        else:
+            with st.spinner(t["spinner_url"]):
+                try:
+                    response = requests.get(
+                        url, headers={"User-Agent": "Mozilla/5.0"}
+                    )
+                    response.raise_for_status()
+                    soup = BeautifulSoup(response.text, "html.parser")
 
-          text_content = ""
-          for p in soup.find_all("p"):
-            text_content += p.get_text() + " "
+                    text_content = ""
+                    for p in soup.find_all("p"):
+                        text_content += p.get_text() + " "
 
-          scraped_text = text_content[:2000]
-        except Exception as e:
-          st.error(f"Error: {e}")
-          st.stop()
-  else:
-    if not manual_text.strip():
-      st.warning(t["err_text"])
-      st.stop()
-    else:
-      scraped_text = manual_text[:2000]
+                    scraped_text = text_content[:2000]
+                except Exception as e:
+                    st.error(f"Error: {e}")
+                    st.stop()
 
-  if scraped_text.strip():
+    elif input_mode == t["mode_text"]:
+        if not manual_text.strip():
+            st.warning(t["err_text"])
+            st.stop()
+        else:
+            scraped_text = manual_text[:2000]
+
+    else:  # 영상 파일 업로드 모드
+        if not uploaded_video:
+            st.warning(t["err_video"])
+            st.stop()
+        else:
+            with st.spinner(t["spinner_video"]):
+                try:
+                    video_file_obj = genai.upload_file(uploaded_video)
+
+                    while video_file_obj.state.name == "PROCESSING":
+                        time.sleep(2)
+                        video_file_obj = genai.get_file(video_file_obj.name)
+
+                    if video_file_obj.state.name == "FAILED":
+                        raise ValueError("영상 파일 처리에 실패했습니다.")
+                except Exception as e:
+                    st.error(f"영상 업로드 중 오류가 발생했습니다: {e}")
+                    st.stop()
+
+    # AI 모델 호출 및 생성 (Gemini 3.5 Flash-Lite 적용)
     with st.spinner(t["spinner_ai"]):
-      try:
-        # 3.5 모델명 적용
-        model = genai.GenerativeModel(
-            model_name="gemini-3.5-flash", system_instruction=prompt_cmd
-        )
-        prompt = (
-            f"다음 정보를 바탕으로 블로그 홍보 글을 작성해줘:\n\n{scraped_text}"
-        )
-        response_ai = model.generate_content(prompt)
-        st.session_state.generated_post = response_ai.text
-      except Exception as e:
-        st.error(f"AI 생성 중 오류가 발생했습니다: {e}")
+        try:
+            model = genai.GenerativeModel(
+                model_name="gemini-3.5-flash-lite", system_instruction=prompt_cmd
+            )
+
+            if video_file_obj:
+                prompt = [
+                    video_file_obj,
+                    "다음 영상을 바탕으로 매력적인 블로그 홍보 글을 작성해줘.",
+                ]
+            else:
+                prompt = f"다음 정보를 바탕으로 블로그 홍보 글을 작성해줘:\n\n{scraped_text}"
+
+            response_ai = model.generate_content(prompt)
+            st.session_state.generated_post = response_ai.text
+        except Exception as e:
+            st.error(f"AI 생성 중 오류가 발생했습니다: {e}")
 
 # 이미 생성된 원고가 있는 경우 화면에 출력 및 번역 기능 제공
 if st.session_state.generated_post:
-  st.success(t["success"])
-  st.markdown("---")
+    st.success(t["success"])
+    st.markdown("---")
 
-  st.markdown(st.session_state.generated_post)
+    st.markdown(st.session_state.generated_post)
 
-  # 🌐 생성된 원고 하단 번역 섹션
-  st.markdown("---")
-  st.subheader(t["trans_header"])
-  target_lang = st.selectbox(
-      t["trans_label"],
-      [
-          "한국어 (Korean)",
-          "영어 (English)",
-          "베트남어 (Tiếng Việt)",
-          "일본어 (Japanese)",
-      ],
-  )
+    # 🌐 생성된 원고 하단 번역 섹션
+    st.markdown("---")
+    st.subheader(t["trans_header"])
+    target_lang = st.selectbox(
+        t["trans_label"],
+        [
+            "한국어 (Korean)",
+            "영어 (English)",
+            "베트남어 (Tiếng Việt)",
+            "일본어 (Japanese)",
+        ],
+    )
 
-  if st.button(t["trans_btn"]):
-    with st.spinner(t["spinner_trans"]):
-      try:
-        trans_model = genai.GenerativeModel(model_name="gemini-3.5-flash")
-        trans_prompt = (
-            f"다음 블로그 원고를 자연스러운 {target_lang}로 번역해줘."
-            f" 마케팅 톤앤매너를 유지해:\n\n{st.session_state.generated_post}"
-        )
-        trans_response = trans_model.generate_content(trans_prompt)
-        st.session_state.generated_post = trans_response.text
-        st.success(t["trans_success"])
-        st.rerun()
-      except Exception as e:
-        st.error(f"번역 중 오류가 발생했습니다: {e}")
+    if st.button(t["trans_btn"]):
+        with st.spinner(t["spinner_trans"]):
+            try:
+                trans_model = genai.GenerativeModel(
+                    model_name="gemini-3.5-flash-lite"
+                )
+                trans_prompt = (
+                    f"다음 블로그 원고를 자연스러운 {target_lang}로 번역해줘."
+                    f" 마케팅 톤앤매너를 유지해:\n\n{st.session_state.generated_post}"
+                )
+                trans_response = trans_model.generate_content(trans_prompt)
+                st.session_state.generated_post = trans_response.text
+                st.success(t["trans_success"])
+                st.rerun()
+            except Exception as e:
+                st.error(f"번역 중 오류가 발생했습니다: {e}")
 
-  # 📋 직접 복사할 수 있는 텍스트 영역
-  st.markdown("---")
-  st.subheader(t["copy_header"])
-  st.text_area(t["copy_placeholder"], st.session_state.generated_post, height=250)
+    # 📋 직접 복사할 수 있는 텍스트 영역
+    st.markdown("---")
+    st.subheader(t["copy_header"])
+    st.text_area(
+        t["copy_placeholder"], st.session_state.generated_post, height=250
+    )
