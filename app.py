@@ -1,3 +1,4 @@
+from io import BytesIO  # 👈 이 부분을 추가해주세요!
 from bs4 import BeautifulSoup
 from fpdf import FPDF
 import google.generativeai as genai
