@@ -3,7 +3,8 @@ import requests
 import html
 from io import BytesIO
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import streamlit as st
 
 # ReportLab imports
@@ -14,7 +15,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
-genai.configure(api_key=st.secrets["GEMINI_API_KEY_2"])
+client = genai.Client(api_key=st.secrets["GEMINI_API_KEY_2"])
 
 # 🌍 UI 다국어 사전 정의
 ui_texts = {
@@ -209,13 +210,14 @@ if st.button(t["button"]):
         else:
             with st.spinner(t["spinner_video"]):
                 try:
-                    video_file_obj = genai.upload_file(
-                        uploaded_video, mime_type=uploaded_video.type
+                    video_file_obj = client.files.upload(
+                        file=uploaded_video,
+                        config={"mime_type": uploaded_video.type},
                     )
                     import time
                     while video_file_obj.state.name == "PROCESSING":
                         time.sleep(2)
-                        video_file_obj = genai.get_file(video_file_obj.name)
+                        video_file_obj = client.files.get(name=video_file_obj.name)
                     if video_file_obj.state.name == "FAILED":
                         raise ValueError("영상 파일 처리에 실패했습니다.")
                 except Exception as e:
@@ -225,18 +227,19 @@ if st.button(t["button"]):
     # AI 모델 호출
     with st.spinner(t["spinner_ai"]):
         try:
-            model = genai.GenerativeModel(
-                model_name="gemini-3.5-flash-lite", system_instruction=prompt_cmd
-            )
             if video_file_obj:
-                prompt = [
+                contents = [
                     video_file_obj,
                     "다음 영상을 바탕으로 매력적인 블로그 홍보 글을 작성해줘.",
                 ]
             else:
-                prompt = f"다음 정보를 바탕으로 블로그 홍보 글을 작성해줘:\n\n{scraped_text}"
+                contents = f"다음 정보를 바탕으로 블로그 홍보 글을 작성해줘:\n\n{scraped_text}"
 
-            response_ai = model.generate_content(prompt)
+            response_ai = client.models.generate_content(
+                model="gemini-3.5-flash-lite",
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=prompt_cmd),
+            )
             st.session_state.generated_post = response_ai.text
         except Exception as e:
             st.error(f"AI 생성 중 오류가 발생했습니다: {e}")
@@ -327,12 +330,14 @@ if st.session_state.generated_post:
     if st.button(t["trans_btn"]):
         with st.spinner(t["spinner_trans"]):
             try:
-                trans_model = genai.GenerativeModel(model_name="gemini-3.5-flash-lite")
                 trans_prompt = (
                     f"다음 블로그 원고를 자연스러운 {target_lang}로 번역해줘."
                     f" 마케팅 톤앤매너를 유지해:\n\n{st.session_state.generated_post}"
                 )
-                trans_response = trans_model.generate_content(trans_prompt)
+                trans_response = client.models.generate_content(
+                    model="gemini-3.5-flash-lite",
+                    contents=trans_prompt,
+                )
                 st.session_state.generated_post = trans_response.text
                 st.success(t["trans_success"])
                 st.rerun()
