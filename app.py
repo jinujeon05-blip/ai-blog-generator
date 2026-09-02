@@ -15,8 +15,110 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
+# 0. 페이지 설정은 다른 st 명령보다 먼저 호출되어야 합니다.
+st.set_page_config(page_title="Jinwoo | AI Blog Studio", page_icon="🤖", layout="centered")
+
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY_2"])
+
+
+# 🎨 배경·버튼·입력창 커스텀 스타일 + Jinwoo 로고
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: linear-gradient(160deg, #F4F1FE 0%, #EAF6FB 45%, #FDF6F0 100%);
+    }
+    .jw-logo-wrap {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 4px 0 28px 0;
+    }
+    .jw-logo-mark {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #6C5CE7 0%, #00B4D8 100%);
+        box-shadow: 0 6px 16px rgba(108, 92, 231, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .jw-logo-mark span {
+        font-family: 'Georgia', serif;
+        font-weight: 700;
+        font-size: 26px;
+        color: #ffffff;
+    }
+    .jw-logo-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.15;
+    }
+    .jw-logo-text .jw-name {
+        font-size: 22px;
+        font-weight: 800;
+        background: linear-gradient(90deg, #6C5CE7, #00B4D8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: 0.3px;
+    }
+    .jw-logo-text .jw-sub {
+        font-size: 12px;
+        font-weight: 600;
+        color: #8A8FA3;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+    }
+    .stTextArea textarea, .stTextInput input {
+        border-radius: 12px !important;
+        border: 1px solid #E3E1F7 !important;
+        box-shadow: 0 2px 6px rgba(108, 92, 231, 0.06);
+    }
+    div[data-testid="stFileUploaderDropzone"] {
+        border-radius: 14px !important;
+        border: 1.5px dashed #B9AEF0 !important;
+        background: #FBFAFF !important;
+    }
+    .stButton > button {
+        background: linear-gradient(90deg, #6C5CE7 0%, #00B4D8 100%);
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        padding: 0.6em 1.6em;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        box-shadow: 0 6px 16px rgba(108, 92, 231, 0.3);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(108, 92, 231, 0.4);
+        color: #ffffff;
+    }
+    .stDownloadButton > button {
+        background: linear-gradient(90deg, #00B4D8 0%, #6C5CE7 100%);
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        font-weight: 700;
+        box-shadow: 0 6px 16px rgba(0, 180, 216, 0.3);
+    }
+    </style>
+
+    <div class="jw-logo-wrap">
+        <div class="jw-logo-mark"><span>J</span></div>
+        <div class="jw-logo-text">
+            <span class="jw-name">Jinwoo</span>
+            <span class="jw-sub">AI Blog Studio</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # 모델 과부하(503)·요청 과다(429) 시 잠시 대기 후 재시도
