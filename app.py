@@ -1,32 +1,59 @@
 from io import BytesIO
 from bs4 import BeautifulSoup
-from fpdf import FPDF
 import google.generativeai as genai
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import requests
 import streamlit as st
 
+# (중략 - 기존 UI 텍스트 및 스트림릿 로직 유지)
 
-# PDF 생성 함수 수정 (나눔고딕 폰트 등록)
+
+# 💡 ReportLab을 활용한 완벽한 한글 지원 PDF 생성 함수
 def create_pdf(text):
-  pdf = FPDF()
-  pdf.add_page()
+  buffer = BytesIO()
+  doc = SimpleDocTemplate(
+      buffer,
+      pagesize=letter,
+      rightMargin=40,
+      leftMargin=40,
+      topMargin=40,
+      bottomMargin=40,
+  )
+  story = []
 
+  # 스타일 설정
+  styles = getSampleStyleSheet()
+
+  # 윈도우/리눅스 환경 공통 기본 폰트(맑은 고딕 또는 나눔고딕) 등록 시도
+  # 스트림릿 클라우드(리눅스) 환경에 기본 설치된 폰트 경로 활용
+  font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
   try:
-    # 💡 프로젝트 폴더에 넣어둔 NanumGothic.ttf 폰트를 등록합니다.
-    pdf.add_font("NanumGothic", "", "NanumGothic.ttf", uni=True)
-    pdf.set_font("NanumGothic", size=11)
-  except Exception as e:
-    # 폰트 파일이 없을 경우 기본 폰트로 대체 (경고 방지용)
-    pdf.set_font("Arial", size=11)
+    pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
+    kor_font = "NanumGothic"
+  except:
+    # 폰트가 없을 경우의 기본 fallback (단, 한글이 깨질 수 있으므로 클라우드 환경 기본 나눔폰트 경로 확인 필요)
+    kor_font = "Helvetica"
 
-  # 유니코드 텍스트를 그대로 multi_cell에 전달 (uni=True 덕분에 정상 출력됨)
-  pdf.multi_cell(0, 10, text)
+  custom_style = ParagraphStyle(
+      "KoreanStyle",
+      parent=styles["Normal"],
+      fontName=kor_font,
+      fontSize=11,
+      leading=16,
+  )
 
-  pdf_output = pdf.output()
-  if isinstance(pdf_output, str):
-    pdf_output = pdf_output.encode("latin-1")
+  # 줄바꿈 및 특수문자 처리
+  formatted_text = text.replace("\n", "<br/>")
+  paragraph = Paragraph(formatted_text, custom_style)
+  story.append(paragraph)
 
-  return BytesIO(pdf_output)
+  doc.build(story)
+  buffer.seek(0)
+  return buffer
 
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
 genai.configure(api_key=st.secrets["GEMINI_API_KEY_2"])
