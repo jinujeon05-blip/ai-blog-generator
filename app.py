@@ -255,23 +255,21 @@ if st.button(t["button"]):
 def create_pdf(text):
     pdf = FPDF()
     pdf.add_page()
-
-    # 한글 출력을 위해 기본 폰트 대신 시스템 폰트(예: 맑은 고딕 또는 NanumGothic 등 환경에 맞는 폰트) 사용 권장
-    # 여기서는 안전하게 기본 폰트(latin-1 범위) 혹은 유니코드 지원 폰트 설정을 위한 구조를 제공합니다.
-    # 만약 리눅스 환경(예: Streamlit Community Cloud)이라면 폰트 파일을 업로드하거나 나눔폰트를 설치해야 합니다.
+    
     try:
-        # Streamlit Cloud 등 리눅스 환경의 기본 나눔폰트 경로 예시 (설정되어 있는 경우)
         pdf.add_font("NanumGothic", "", "/usr/share/fonts/truetype/nanum/NanumGothic.ttf", uni=True)
         pdf.set_font("NanumGothic", size=11)
     except:
-        # 로컬 또는 기본 환경 대체
         pdf.set_font("Arial", size=11)
 
-    # 본문 텍스트 줄바꿈 처리
-    # 유니코드 문자가 포함될 수 있으므로 인코딩 에러 방지 처리
     safe_text = text.encode("latin-1", "replace").decode("latin-1")
     pdf.multi_cell(0, 10, safe_text)
-    return pdf.output()
+    
+    # 💡 수정된 부분: 문자열로 반환되는 출력을 bytes로 인코딩합니다.
+    pdf_output = pdf.output(dest='S')
+    if isinstance(pdf_output, str):
+        return pdf_output.encode("latin-1")
+    return pdf_output
 
 
 # 이미 생성된 원고가 있는 경우 화면에 출력 및 번역 기능 제공
