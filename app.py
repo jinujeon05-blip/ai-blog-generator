@@ -1,51 +1,12 @@
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, SimpleDocTemplate
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-import html
 from io import BytesIO
-
-
-def create_pdf(text):
-  buffer = BytesIO()
-  doc = SimpleDocTemplate(
-      buffer,
-      pagesize=letter,
-      rightMargin=40,
-      leftMargin=40,
-      topMargin=40,
-      bottomMargin=40,
-  )
-  story = []
-
-  styles = getSampleStyleSheet()
-
-  # 💡 스트림릿 클라우드(리눅스) 환경의 나눔고딕 폰트 등록
-  font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
-  try:
-    pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
-    font_name = "NanumGothic"
-  except:
-    font_name = "Helvetica"  # 폰트 로드 실패 시 대체
-
-  # 한글 출력용 스타일 생성
-  custom_style = ParagraphStyle(
-      "KoreanStyle",
-      parent=styles["Normal"],
-      fontName=font_name,
-      fontSize=11,
-      leading=16,
-  )
-
-  # 특수문자 및 줄바꿈 안전 처리
-  safe_text = html.escape(text).replace("\n", "<br/>")
-  paragraph = Paragraph(safe_text, custom_style)
-  story.append(paragraph)
-
-  doc.build(story)
-  buffer.seek(0)
-  return buffer
+from bs4 import BeautifulSoup
+import google.generativeai as genai
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+import requests
+import streamlit as st
+import html
 
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
 genai.configure(api_key=st.secrets["GEMINI_API_KEY_2"])
