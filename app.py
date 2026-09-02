@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import html
 from io import BytesIO
@@ -16,6 +17,20 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY_2"])
+
+
+# 모델 과부하(503)·요청 과다(429) 시 잠시 대기 후 재시도
+def generate_with_retry(max_retries=3, **kwargs):
+    for attempt in range(max_retries):
+        try:
+            return client.models.generate_content(**kwargs)
+        except Exception as e:
+            msg = str(e)
+            is_retryable = "503" in msg or "UNAVAILABLE" in msg or "429" in msg or "RESOURCE_EXHAUSTED" in msg
+            if is_retryable and attempt < max_retries - 1:
+                time.sleep(3 * (attempt + 1))
+                continue
+            raise
 
 # 🌍 UI 다국어 사전 정의
 ui_texts = {
@@ -214,7 +229,6 @@ if st.button(t["button"]):
                         file=uploaded_video,
                         config={"mime_type": uploaded_video.type},
                     )
-                    import time
                     while video_file_obj.state.name == "PROCESSING":
                         time.sleep(2)
                         video_file_obj = client.files.get(name=video_file_obj.name)
@@ -235,7 +249,7 @@ if st.button(t["button"]):
             else:
                 contents = f"다음 정보를 바탕으로 블로그 홍보 글을 작성해줘:\n\n{scraped_text}"
 
-            response_ai = client.models.generate_content(
+            response_ai = generate_with_retry(
                 model="gemini-3.5-flash-lite",
                 contents=contents,
                 config=types.GenerateContentConfig(system_instruction=prompt_cmd),
@@ -334,7 +348,7 @@ if st.session_state.generated_post:
                     f"다음 블로그 원고를 자연스러운 {target_lang}로 번역해줘."
                     f" 마케팅 톤앤매너를 유지해:\n\n{st.session_state.generated_post}"
                 )
-                trans_response = client.models.generate_content(
+                trans_response = generate_with_retry(
                     model="gemini-3.5-flash-lite",
                     contents=trans_prompt,
                 )
