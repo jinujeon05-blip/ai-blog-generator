@@ -251,25 +251,35 @@ if st.button(t["button"]):
             st.error(f"AI 생성 중 오류가 발생했습니다: {e}")
 
 
-# PDF 생성 함수 정의 (fpdf2 활용)
+#from io import BytesIO  # 💡 파일 상단이나 함수 내에 임포트 확인
+
+
+# PDF 생성 함수 수정
 def create_pdf(text):
     pdf = FPDF()
     pdf.add_page()
-    
+
     try:
-        pdf.add_font("NanumGothic", "", "/usr/share/fonts/truetype/nanum/NanumGothic.ttf", uni=True)
+        pdf.add_font(
+            "NanumGothic",
+            "",
+            "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+            uni=True,
+        )
         pdf.set_font("NanumGothic", size=11)
     except:
         pdf.set_font("Arial", size=11)
 
+    # 💡 이모지가 포함되어 있을 경우 에러를 방지하기 위해 텍스트 인코딩 처리
     safe_text = text.encode("latin-1", "replace").decode("latin-1")
     pdf.multi_cell(0, 10, safe_text)
-    
-    # 💡 수정된 부분: 문자열로 반환되는 출력을 bytes로 인코딩합니다.
-    pdf_output = pdf.output(dest='S')
+
+    # 💡 BytesIO를 사용하여 Streamlit download_button과 완벽히 호환되도록 수정
+    pdf_output = pdf.output()
     if isinstance(pdf_output, str):
-        return pdf_output.encode("latin-1")
-    return pdf_output
+        pdf_output = pdf_output.encode("latin-1")
+
+    return BytesIO(pdf_output)
 
 
 # 이미 생성된 원고가 있는 경우 화면에 출력 및 번역 기능 제공
