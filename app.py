@@ -1,9 +1,32 @@
-from io import BytesIO  # 👈 이 부분을 추가해주세요!
+from io import BytesIO
 from bs4 import BeautifulSoup
 from fpdf import FPDF
 import google.generativeai as genai
 import requests
 import streamlit as st
+
+
+# PDF 생성 함수 수정 (나눔고딕 폰트 등록)
+def create_pdf(text):
+  pdf = FPDF()
+  pdf.add_page()
+
+  try:
+    # 💡 프로젝트 폴더에 넣어둔 NanumGothic.ttf 폰트를 등록합니다.
+    pdf.add_font("NanumGothic", "", "NanumGothic.ttf", uni=True)
+    pdf.set_font("NanumGothic", size=11)
+  except Exception as e:
+    # 폰트 파일이 없을 경우 기본 폰트로 대체 (경고 방지용)
+    pdf.set_font("Arial", size=11)
+
+  # 유니코드 텍스트를 그대로 multi_cell에 전달 (uni=True 덕분에 정상 출력됨)
+  pdf.multi_cell(0, 10, text)
+
+  pdf_output = pdf.output()
+  if isinstance(pdf_output, str):
+    pdf_output = pdf_output.encode("latin-1")
+
+  return BytesIO(pdf_output)
 
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
 genai.configure(api_key=st.secrets["GEMINI_API_KEY_2"])
