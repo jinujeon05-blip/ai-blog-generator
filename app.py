@@ -1,5 +1,5 @@
-import time
 from bs4 import BeautifulSoup
+from fpdf import FPDF
 import google.generativeai as genai
 import requests
 import streamlit as st
@@ -18,12 +18,9 @@ ui_texts = {
         "mode_video": "영상 파일 업로드",
         "url_label": "분석할 웹사이트 링크 입력",
         "text_label": "블로그 원고로 변환할 본문 내용을 직접 붙여넣으세요",
-        "video_label": (
-            "블로그로 변환할 영상 파일을 업로드하세요 (MP4, MOV 등)"
-        ),
+        "video_label": "블로그로 변환할 영상 파일을 업로드하세요 (MP4, MOV 등)",
         "text_placeholder": (
-            "여기에 상품 설명, 뉴스 기사, 또는 참고할 텍스트를 복사해서"
-            " 붙여넣으세요..."
+            "여기에 상품 설명, 뉴스 기사, 또는 참고할 텍스트를 복사해서 붙여넣으세요..."
         ),
         "prompt_label": "AI 마케팅 지시사항",
         "default_prompt": "10년 차 블로그 마케터처럼 작성해줘",
@@ -42,6 +39,7 @@ ui_texts = {
         "trans_btn": "원고 번역하기",
         "spinner_trans": "🔄 원고를 번역하고 있습니다...",
         "trans_success": "✨ 번역이 완료되었습니다!",
+        "pdf_btn": "📥 PDF로 다운로드",
     },
     "영어 (English)": {
         "title": "🤖 AI Blog Automation Generator",
@@ -56,8 +54,7 @@ ui_texts = {
             "Upload a video file to convert into a blog post (MP4, MOV, etc.)"
         ),
         "text_placeholder": (
-            "Paste product descriptions, news articles, or reference text"
-            " here..."
+            "Paste product descriptions, news articles, or reference text here..."
         ),
         "prompt_label": "AI Marketing Instructions",
         "default_prompt": (
@@ -78,6 +75,7 @@ ui_texts = {
         "trans_btn": "Translate Post",
         "spinner_trans": "🔄 Translating the post...",
         "trans_success": "✨ Translation completed!",
+        "pdf_btn": "📥 Download as PDF",
     },
     "베트남어 (Tiếng Việt)": {
         "title": "🤖 Trình Tạo Blog Tự Động AI",
@@ -93,9 +91,7 @@ ui_texts = {
             "Dán mô tả sản phẩm, bài báo hoặc văn bản tham khảo vào đây..."
         ),
         "prompt_label": "Hướng Dẫn Tiếp Thị AI",
-        "default_prompt": (
-            "Viết như một nhà tiếp thị blog 10 năm kinh nghiệm."
-        ),
+        "default_prompt": "Viết như một nhà tiếp thị blog 10 năm kinh nghiệm.",
         "button": "Tạo Bài Viết Blog",
         "spinner_url": "🔄 Đang thu thập thông tin...",
         "spinner_video": "🔄 Đang tải lên video và phân tích bằng AI...",
@@ -111,6 +107,7 @@ ui_texts = {
         "trans_btn": "Dịch Bài Viết",
         "spinner_trans": "🔄 Đang dịch bài viết...",
         "trans_success": "✨ Đã dịch xong!",
+        "pdf_btn": "📥 Tải xuống dưới dạng PDF",
     },
     "일본어 (日本語)": {
         "title": "🤖 AI ブログ自動化ジェネレーター",
@@ -142,6 +139,7 @@ ui_texts = {
         "trans_btn": "原稿を翻訳する",
         "spinner_trans": "🔄 原稿を翻訳しています...",
         "trans_success": "✨ 翻訳が完了しました！",
+        "pdf_btn": "📥 PDFとしてダウンロード",
     },
 }
 
@@ -216,10 +214,11 @@ if st.button(t["button"]):
         else:
             with st.spinner(t["spinner_video"]):
                 try:
-                    # 💡 수정된 부분: Streamlit 파일 객체를 보낼 때 mime_type을 지정해줍니다.
                     video_file_obj = genai.upload_file(
                         uploaded_video, mime_type=uploaded_video.type
                     )
+
+                    import time
 
                     while video_file_obj.state.name == "PROCESSING":
                         time.sleep(2)
@@ -251,12 +250,46 @@ if st.button(t["button"]):
         except Exception as e:
             st.error(f"AI 생성 중 오류가 발생했습니다: {e}")
 
+
+# PDF 생성 함수 정의 (fpdf2 활용)
+def create_pdf(text):
+    pdf = FPDF()
+    pdf.add_page()
+
+    # 한글 출력을 위해 기본 폰트 대신 시스템 폰트(예: 맑은 고딕 또는 NanumGothic 등 환경에 맞는 폰트) 사용 권장
+    # 여기서는 안전하게 기본 폰트(latin-1 범위) 혹은 유니코드 지원 폰트 설정을 위한 구조를 제공합니다.
+    # 만약 리눅스 환경(예: Streamlit Community Cloud)이라면 폰트 파일을 업로드하거나 나눔폰트를 설치해야 합니다.
+    try:
+        # Streamlit Cloud 등 리눅스 환경의 기본 나눔폰트 경로 예시 (설정되어 있는 경우)
+        pdf.add_font("NanumGothic", "", "/usr/share/fonts/truetype/nanum/NanumGothic.ttf", uni=True)
+        pdf.set_font("NanumGothic", size=11)
+    except:
+        # 로컬 또는 기본 환경 대체
+        pdf.set_font("Arial", size=11)
+
+    # 본문 텍스트 줄바꿈 처리
+    # 유니코드 문자가 포함될 수 있으므로 인코딩 에러 방지 처리
+    safe_text = text.encode("latin-1", "replace").decode("latin-1")
+    pdf.multi_cell(0, 10, safe_text)
+    return pdf.output()
+
+
 # 이미 생성된 원고가 있는 경우 화면에 출력 및 번역 기능 제공
 if st.session_state.generated_post:
     st.success(t["success"])
     st.markdown("---")
 
     st.markdown(st.session_state.generated_post)
+
+    # 📥 PDF 다운로드 버튼 추가
+    st.markdown("---")
+    pdf_data = create_pdf(st.session_state.generated_post)
+    st.download_button(
+        label=t["pdf_btn"],
+        data=pdf_data,
+        file_name="blog_post.pdf",
+        mime="application/pdf",
+    )
 
     # 🌐 생성된 원고 하단 번역 섹션
     st.markdown("---")
