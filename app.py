@@ -1,12 +1,17 @@
+import os
+import requests
+import html
 from io import BytesIO
 from bs4 import BeautifulSoup
 import google.generativeai as genai
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
-import requests
 import streamlit as st
-import html
+
+# ReportLab imports
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph, SimpleDocTemplate
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
 genai.configure(api_key=st.secrets["GEMINI_API_KEY_2"])
@@ -23,9 +28,7 @@ ui_texts = {
         "url_label": "분석할 웹사이트 링크 입력",
         "text_label": "블로그 원고로 변환할 본문 내용을 직접 붙여넣으세요",
         "video_label": "블로그로 변환할 영상 파일을 업로드하세요 (MP4, MOV 등)",
-        "text_placeholder": (
-            "여기에 상품 설명, 뉴스 기사, 또는 참고할 텍스트를 복사해서 붙여넣으세요..."
-        ),
+        "text_placeholder": "여기에 상품 설명, 뉴스 기사, 또는 참고할 텍스트를 복사해서 붙여넣으세요...",
         "prompt_label": "AI 마케팅 지시사항",
         "default_prompt": "10년 차 블로그 마케터처럼 작성해줘",
         "button": "블로그 원고 생성하기",
@@ -54,16 +57,10 @@ ui_texts = {
         "mode_video": "Video File Upload",
         "url_label": "Enter Website Link to Analyze",
         "text_label": "Paste the body text to convert into a blog post",
-        "video_label": (
-            "Upload a video file to convert into a blog post (MP4, MOV, etc.)"
-        ),
-        "text_placeholder": (
-            "Paste product descriptions, news articles, or reference text here..."
-        ),
+        "video_label": "Upload a video file to convert into a blog post (MP4, MOV, etc.)",
+        "text_placeholder": "Paste product descriptions, news articles, or reference text here...",
         "prompt_label": "AI Marketing Instructions",
-        "default_prompt": (
-            "Write like a 10-year veteran blog marketer with high engagement."
-        ),
+        "default_prompt": "Write like a 10-year veteran blog marketer with high engagement.",
         "button": "Generate Blog Post",
         "spinner_url": "🔄 Gathering information...",
         "spinner_video": "🔄 Uploading video and analyzing with AI...",
@@ -91,9 +88,7 @@ ui_texts = {
         "url_label": "Nhập liên kết trang web cần phân tích",
         "text_label": "Dán nội dung văn bản để chuyển đổi thành bài đăng blog",
         "video_label": "Tải lên tệp video để chuyển đổi thành bài viết blog",
-        "text_placeholder": (
-            "Dán mô tả sản phẩm, bài báo hoặc văn bản tham khảo vào đây..."
-        ),
+        "text_placeholder": "Dán mô tả sản phẩm, bài báo hoặc văn bản tham khảo vào đây...",
         "prompt_label": "Hướng Dẫn Tiếp Thị AI",
         "default_prompt": "Viết như một nhà tiếp thị blog 10 năm kinh nghiệm.",
         "button": "Tạo Bài Viết Blog",
@@ -123,9 +118,7 @@ ui_texts = {
         "url_label": "分析するウェブサイトのリンクを入力",
         "text_label": "ブログ原稿に変換する本文の内容を直接貼り付けてください",
         "video_label": "ブログに変換する動画ファイルをアップロードしてください",
-        "text_placeholder": (
-            "ここに商品説明、ニュース記事、または参考テキストを貼り付けてください..."
-        ),
+        "text_placeholder": "ここに商品説明、ニュース記事、または参考テキストを貼り付けてください...",
         "prompt_label": "AIマーケティング指示事項",
         "default_prompt": "10年目のプロブログマーケターのように書いてください。",
         "button": "ブログ原稿を生成する",
@@ -156,7 +149,7 @@ t = ui_texts[selected_lang]
 
 st.title(t["title"])
 
-# 입력 방식 선택 옵션 (영상 업로드 모드 포함)
+# 입력 방식 선택 옵션
 input_mode = st.radio(
     t["input_mode"], [t["mode_url"], t["mode_text"], t["mode_video"]]
 )
@@ -177,7 +170,7 @@ else:
 
 prompt_cmd = st.text_area(t["prompt_label"], t["default_prompt"])
 
-# 세션 상태 초기화 (원고 유지용)
+# 세션 상태 초기화
 if "generated_post" not in st.session_state:
     st.session_state.generated_post = ""
 
@@ -194,11 +187,9 @@ if st.button(t["button"]):
                     )
                     response.raise_for_status()
                     soup = BeautifulSoup(response.text, "html.parser")
-
                     text_content = ""
                     for p in soup.find_all("p"):
                         text_content += p.get_text() + " "
-
                     scraped_text = text_content[:2000]
                 except Exception as e:
                     st.error(f"Error: {e}")
@@ -211,7 +202,7 @@ if st.button(t["button"]):
         else:
             scraped_text = manual_text[:2000]
 
-    else:  # 영상 파일 업로드 모드
+    else:
         if not uploaded_video:
             st.warning(t["err_video"])
             st.stop()
@@ -221,26 +212,22 @@ if st.button(t["button"]):
                     video_file_obj = genai.upload_file(
                         uploaded_video, mime_type=uploaded_video.type
                     )
-
                     import time
-
                     while video_file_obj.state.name == "PROCESSING":
                         time.sleep(2)
                         video_file_obj = genai.get_file(video_file_obj.name)
-
                     if video_file_obj.state.name == "FAILED":
                         raise ValueError("영상 파일 처리에 실패했습니다.")
                 except Exception as e:
                     st.error(f"영상 업로드 중 오류가 발생했습니다: {e}")
                     st.stop()
 
-    # AI 모델 호출 및 생성 (Gemini 3.5 Flash-Lite 적용)
+    # AI 모델 호출
     with st.spinner(t["spinner_ai"]):
         try:
             model = genai.GenerativeModel(
                 model_name="gemini-3.5-flash-lite", system_instruction=prompt_cmd
             )
-
             if video_file_obj:
                 prompt = [
                     video_file_obj,
@@ -255,7 +242,25 @@ if st.button(t["button"]):
             st.error(f"AI 생성 중 오류가 발생했습니다: {e}")
 
 
-# 💡 ReportLab을 활용한 안전하고 완벽한 PDF 생성 함수
+# 💡 확실한 한글 깨짐 방지: 구글 폰트 자동 다운로드 및 적용 함수
+def get_korean_font():
+    font_path = "NanumGothic.ttf"
+    # 서버에 폰트 파일이 없으면 구글 폰트에서 직접 다운로드합니다.
+    if not os.path.exists(font_path):
+        font_url = "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf"
+        try:
+            r = requests.get(font_url)
+            with open(font_path, "wb") as f:
+                f.write(r.content)
+        except Exception as e:
+            st.error(f"폰트 다운로드 실패: {e}")
+            return "Helvetica" # 최후의 수단
+    
+    pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
+    return "NanumGothic"
+
+
+# PDF 생성 함수
 def create_pdf(text):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -268,14 +273,21 @@ def create_pdf(text):
     )
     story = []
 
+    # 폰트를 준비하고 스타일을 지정합니다.
+    font_name = get_korean_font()
     styles = getSampleStyleSheet()
-    normal_style = styles["Normal"]
-
-    # 특수문자와 줄바꿈 처리
-    safe_text = html.escape(text).replace("\n", "<br/>")
-    paragraph = Paragraph(
-        f"<font fontName='Helvetica' size=11>{safe_text}</font>", normal_style
+    
+    kor_style = ParagraphStyle(
+        "KoreanStyle",
+        parent=styles["Normal"],
+        fontName=font_name,
+        fontSize=11,
+        leading=16,
     )
+
+    # 마크다운 특수문자 및 줄바꿈 처리
+    safe_text = html.escape(text).replace("\n", "<br/>")
+    paragraph = Paragraph(safe_text, kor_style)
     story.append(paragraph)
 
     doc.build(story)
@@ -283,14 +295,13 @@ def create_pdf(text):
     return buffer
 
 
-# 이미 생성된 원고가 있는 경우 화면에 출력 및 번역 기능 제공
+# 이미 생성된 원고가 있는 경우 화면에 출력 및 다운로드/번역 기능 제공
 if st.session_state.generated_post:
     st.success(t["success"])
     st.markdown("---")
-
     st.markdown(st.session_state.generated_post)
 
-    # 📥 PDF 다운로드 버튼 추가
+    # 📥 PDF 다운로드 버튼
     st.markdown("---")
     pdf_data = create_pdf(st.session_state.generated_post)
     st.download_button(
@@ -300,7 +311,7 @@ if st.session_state.generated_post:
         mime="application/pdf",
     )
 
-    # 🌐 생성된 원고 하단 번역 섹션
+    # 🌐 번역 섹션
     st.markdown("---")
     st.subheader(t["trans_header"])
     target_lang = st.selectbox(
@@ -316,9 +327,7 @@ if st.session_state.generated_post:
     if st.button(t["trans_btn"]):
         with st.spinner(t["spinner_trans"]):
             try:
-                trans_model = genai.GenerativeModel(
-                    model_name="gemini-3.5-flash-lite"
-                )
+                trans_model = genai.GenerativeModel(model_name="gemini-3.5-flash-lite")
                 trans_prompt = (
                     f"다음 블로그 원고를 자연스러운 {target_lang}로 번역해줘."
                     f" 마케팅 톤앤매너를 유지해:\n\n{st.session_state.generated_post}"
@@ -330,7 +339,7 @@ if st.session_state.generated_post:
             except Exception as e:
                 st.error(f"번역 중 오류가 발생했습니다: {e}")
 
-    # 📋 직접 복사할 수 있는 텍스트 영역
+    # 📋 직접 복사 영역
     st.markdown("---")
     st.subheader(t["copy_header"])
     st.text_area(
