@@ -2,58 +2,11 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import google.generativeai as genai
 from reportlab.lib.pagesizes import letter
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 import requests
 import streamlit as st
-
-# (중략 - 기존 UI 텍스트 및 스트림릿 로직 유지)
-
-
-# 💡 ReportLab을 활용한 완벽한 한글 지원 PDF 생성 함수
-def create_pdf(text):
-  buffer = BytesIO()
-  doc = SimpleDocTemplate(
-      buffer,
-      pagesize=letter,
-      rightMargin=40,
-      leftMargin=40,
-      topMargin=40,
-      bottomMargin=40,
-  )
-  story = []
-
-  # 스타일 설정
-  styles = getSampleStyleSheet()
-
-  # 윈도우/리눅스 환경 공통 기본 폰트(맑은 고딕 또는 나눔고딕) 등록 시도
-  # 스트림릿 클라우드(리눅스) 환경에 기본 설치된 폰트 경로 활용
-  font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
-  try:
-    pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
-    kor_font = "NanumGothic"
-  except:
-    # 폰트가 없을 경우의 기본 fallback (단, 한글이 깨질 수 있으므로 클라우드 환경 기본 나눔폰트 경로 확인 필요)
-    kor_font = "Helvetica"
-
-  custom_style = ParagraphStyle(
-      "KoreanStyle",
-      parent=styles["Normal"],
-      fontName=kor_font,
-      fontSize=11,
-      leading=16,
-  )
-
-  # 줄바꿈 및 특수문자 처리
-  formatted_text = text.replace("\n", "<br/>")
-  paragraph = Paragraph(formatted_text, custom_style)
-  story.append(paragraph)
-
-  doc.build(story)
-  buffer.seek(0)
-  return buffer
+import html
 
 # 1. 스트림릿 비밀 보관함에서 키를 가져옵니다.
 genai.configure(api_key=st.secrets["GEMINI_API_KEY_2"])
@@ -302,35 +255,32 @@ if st.button(t["button"]):
             st.error(f"AI 생성 중 오류가 발생했습니다: {e}")
 
 
-#from io import BytesIO  # 💡 파일 상단이나 함수 내에 임포트 확인
-
-
-# PDF 생성 함수 수정
+# 💡 ReportLab을 활용한 안전하고 완벽한 PDF 생성 함수
 def create_pdf(text):
-    pdf = FPDF()
-    pdf.add_page()
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40,
+    )
+    story = []
 
-    try:
-        pdf.add_font(
-            "NanumGothic",
-            "",
-            "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
-            uni=True,
-        )
-        pdf.set_font("NanumGothic", size=11)
-    except:
-        pdf.set_font("Arial", size=11)
+    styles = getSampleStyleSheet()
+    normal_style = styles["Normal"]
 
-    # 💡 이모지가 포함되어 있을 경우 에러를 방지하기 위해 텍스트 인코딩 처리
-    safe_text = text.encode("latin-1", "replace").decode("latin-1")
-    pdf.multi_cell(0, 10, safe_text)
+    # 특수문자와 줄바꿈 처리
+    safe_text = html.escape(text).replace("\n", "<br/>")
+    paragraph = Paragraph(
+        f"<font fontName='Helvetica' size=11>{safe_text}</font>", normal_style
+    )
+    story.append(paragraph)
 
-    # 💡 BytesIO를 사용하여 Streamlit download_button과 완벽히 호환되도록 수정
-    pdf_output = pdf.output()
-    if isinstance(pdf_output, str):
-        pdf_output = pdf_output.encode("latin-1")
-
-    return BytesIO(pdf_output)
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 
 # 이미 생성된 원고가 있는 경우 화면에 출력 및 번역 기능 제공
